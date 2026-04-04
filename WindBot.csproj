@@ -92,6 +92,14 @@
     <Compile Include="Game\AI\Decks\MalissOCGExecutor.cs" />
     <Compile Include="Game\AI\Decks\MokeyMokeyKingExecutor.cs" />
     <Compile Include="Game\AI\Decks\MokeyMokeyExecutor.cs" />
+    <Compile Include="Game\AI\Decks\BusterBladerExecutor.cs" />
+    <Compile Include="Game\AI\Decks\DinocarriageDynarmixExecutor.cs" />
+    <Compile Include="Game\AI\Decks\ExcutieExecutor.cs" />
+    <Compile Include="Game\AI\Decks\MituziExecutor.cs" />
+    <Compile Include="Game\AI\Decks\ObsidianMagicalExecutor.cs" />
+    <Compile Include="Game\AI\Decks\RushDragonDragearsExecutor.cs" />
+    <Compile Include="Game\AI\Decks\SaikyoBattleFlagExecutor.cs" />
+    <Compile Include="Game\AI\Decks\TheLegendExecutor.cs" />
     <Compile Include="Game\AI\Decks\TearlamentsExecutor.cs" />
     <Compile Include="Game\AI\Decks\ThunderDragonExecutor.cs" />
     <Compile Include="Game\AI\Decks\TimeThiefExecutor.cs" />
@@ -140,6 +148,7 @@
     <Compile Include="Game\AI\Enums\PreventActivationEffectInBattle.cs" />
     <Compile Include="Game\AI\Enums\OneForXyz.cs" />
     <Compile Include="Game\AI\Enums\InvincibleMonster.cs" />
+    <Compile Include="Game\AI\Enums\ImmuneTrapMonster.cs" />
     <Compile Include="Game\AI\Enums\Floodgate.cs" />
     <Compile Include="Game\AI\Executor.cs" />
     <Compile Include="Game\AI\HintMsg.cs" />

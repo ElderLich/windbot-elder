@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using YGOSharp.OCGWrapper.Enums;
 using System;
 using System.Linq;
@@ -67,6 +67,14 @@ namespace WindBot.Game.AI
                 .FirstOrDefault();
         }
 
+        public static ClientCard GetHighestLevelMonster(this IEnumerable<ClientCard> cards, bool canBeTarget = false)
+        {
+            return cards
+                .Where(card => card?.Data != null && card.HasType(CardType.Monster) && card.IsFaceup() && !(canBeTarget && card.IsShouldNotBeTarget()))
+                .OrderByDescending(card => card.Level)
+                .FirstOrDefault();
+        }
+
         public static ClientCard GetLowestAttackMonster(this IEnumerable<ClientCard> cards, bool canBeTarget = false)
         {
             return cards
@@ -80,6 +88,14 @@ namespace WindBot.Game.AI
             return cards
                 .Where(card => card?.Data != null && card.HasType(CardType.Monster) && card.IsFaceup() && !(canBeTarget && card.IsShouldNotBeTarget()))
                 .OrderBy(card => card.Defense)
+                .FirstOrDefault();
+        }
+
+        public static ClientCard GetLowestLevelMonster(this IEnumerable<ClientCard> cards, bool canBeTarget = false)
+        {
+            return cards
+                .Where(card => card?.Data != null && card.HasType(CardType.Monster) && card.IsFaceup() && !(canBeTarget && card.IsShouldNotBeTarget()))
+                .OrderBy(card => card.Level)
                 .FirstOrDefault();
         }
 
@@ -116,6 +132,11 @@ namespace WindBot.Game.AI
         public static ClientCard GetInvincibleMonster(this IEnumerable<ClientCard> cards, bool canBeTarget = false)
         {
             return cards.FirstOrDefault(card => card?.Data != null && card.IsMonsterInvincible() && card.IsFaceup() && (!canBeTarget || !card.IsShouldNotBeTarget()));
+        }
+
+        public static ClientCard GetImmuneTrapMonster(this IEnumerable<ClientCard> cards, bool canBeTarget = false)
+        {
+            return cards.FirstOrDefault(card => card?.Data != null && card.IsMonsterImmuneTrap() && card.IsFaceup() && (!canBeTarget || !card.IsShouldNotBeTarget()));
         }
 
         public static ClientCard GetDangerousMonster(this IEnumerable<ClientCard> cards, bool canBeTarget = false)
