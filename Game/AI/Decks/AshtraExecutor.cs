@@ -8,7 +8,7 @@ using WindBot.Game.AI;
 
 namespace WindBot.Game.AI.Decks
 {
-    [Deck("Ashtra", "AI_Ashtra", "NotFinished")]
+    [Deck("Ashtra", "AI_Ashtra")]
     class AshtraExecutor : DefaultExecutor
     {
         public class CardId
