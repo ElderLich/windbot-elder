@@ -113,6 +113,7 @@ namespace WindBot.Game.AI.Decks
         }
 
         private readonly HashSet<int> _usedEffects = new HashSet<int>();
+        private readonly HashSet<int> _resolvedChainIndices = new HashSet<int>();
         private readonly Dictionary<int, List<ClientCard>> _reservedRemoval =
             new Dictionary<int, List<ClientCard>>();
         private readonly HashSet<ClientCard> _spentBaronne = new HashSet<ClientCard>();
@@ -126,6 +127,7 @@ namespace WindBot.Game.AI.Decks
         private readonly HashSet<ClientCard> _ekhajarBouncePending = new HashSet<ClientCard>();
         private readonly HashSet<ClientCard> _ekhajarSummonedInChain = new HashSet<ClientCard>();
         private readonly HashSet<ClientCard> _ekhajarBounceInChain = new HashSet<ClientCard>();
+        private readonly HashSet<ClientCard> _synchroSummonedEkhajar = new HashSet<ClientCard>();
         private int _pendingHowlChainIndex;
         private readonly HashSet<ClientCard> _mikumariSummonPending = new HashSet<ClientCard>();
         private readonly HashSet<ClientCard> _mikumariSetPending = new HashSet<ClientCard>();
@@ -146,6 +148,7 @@ namespace WindBot.Game.AI.Decks
         private readonly HashSet<ClientCard> _susanooSummonPending = new HashSet<ClientCard>();
         private readonly HashSet<ClientCard> _susanooSummonedInChain = new HashSet<ClientCard>();
         private bool _chengyingReplacementPending;
+        private bool _albionSentToGraveThisTurn;
 
         public override bool OnSelectHand()
         {
@@ -155,6 +158,7 @@ namespace WindBot.Game.AI.Decks
         public override void OnNewTurn()
         {
             _usedEffects.Clear();
+            _resolvedChainIndices.Clear();
             _timeSearchUsed = false;
             _timeCoinUsed = false;
             _plannedTimeWizardOptions.Clear();
@@ -169,6 +173,7 @@ namespace WindBot.Game.AI.Decks
             _susanooSummonPending.Clear();
             _susanooSummonedInChain.Clear();
             _chengyingReplacementPending = false;
+            _albionSentToGraveThisTurn = false;
             _ekhajarSummonPending.Clear();
             _ekhajarBouncePending.Clear();
             _ekhajarSummonedInChain.Clear();
@@ -212,6 +217,10 @@ namespace WindBot.Game.AI.Decks
             foreach (ClientCard summoned in Duel.LastSummonedCards.Where(c => c.Controller == 0 &&
                 c.IsCode(CardId.EkhajarDescendantDragonOfTheIceBarrier)))
             {
+                if (summoned.LastLocation == CardLocation.Extra)
+                    _synchroSummonedEkhajar.Add(summoned);
+                else
+                    _synchroSummonedEkhajar.Remove(summoned);
                 _ekhajarSummonPending.Add(summoned);
                 if (Duel.CurrentChain.Count > 0)
                     _ekhajarSummonedInChain.Add(summoned);
@@ -306,6 +315,7 @@ namespace WindBot.Game.AI.Decks
         public override void OnChainSolved(int chainIndex)
         {
             _chengyingReplacementPending = false;
+            _resolvedChainIndices.Add(chainIndex);
             if (chainIndex > 0 && chainIndex <= Duel.CurrentChainInfo.Count)
             {
                 ChainInfo info = Duel.CurrentChainInfo[chainIndex - 1];
@@ -318,6 +328,7 @@ namespace WindBot.Game.AI.Decks
         public override void OnChainEnd()
         {
             _chengyingReplacementPending = false;
+            _resolvedChainIndices.Clear();
             // A Synchro summon within the previous chain triggers only after
             // that chain ends. Keep new events, but expire older declined ones.
             _susanooSummonPending.Clear();
@@ -367,6 +378,12 @@ namespace WindBot.Game.AI.Decks
         public override void OnMove(ClientCard card, int previousControler,
             int previousLocation, int currentControler, int currentLocation)
         {
+            // Preserve the actual send-to-Graveyard event for the whole turn,
+            // even if Albion subsequently leaves the Graveyard.
+            if (card != null && card.IsCode(CardId.AlbionTheBrandedDragon) &&
+                currentControler == 0 && currentLocation == (int)CardLocation.Grave &&
+                previousLocation != (int)CardLocation.Grave)
+                _albionSentToGraveThisTurn = true;
             if (previousLocation == (int)CardLocation.MonsterZone &&
                 currentLocation != (int)CardLocation.MonsterZone)
             {
@@ -380,6 +397,7 @@ namespace WindBot.Game.AI.Decks
                     _plannedTimeWizardOptions.TryGetValue(Duel.SolvingChainIndex, out option) && option == 2)
                     _timeWizardDestroyedMonster = true;
                 _spentBaronne.Remove(card);
+                _synchroSummonedEkhajar.Remove(card);
                 _mikumariSummonPending.Remove(card);
                 _mikumariSetPending.Remove(card);
                 _mikumariSummonedInChain.Remove(card);
@@ -436,7 +454,124 @@ namespace WindBot.Game.AI.Decks
 
         private bool OpponentResponse()
         {
-            return CanRespondToOpponent() && !DefaultCheckWhetherCardIsNegated(Card);
+            // These locks apply only when activating the trap from the hand;
+            // a previously Set copy keeps the existing response policy.
+            if (Card.Location == CardLocation.Hand)
+            {
+                if (Card.IsCode(CardId.DominusImpulse) &&
+                    (Bot.Hand.Any(c => c.IsMonster() &&
+                        c.HasAttribute(CardAttribute.Wind | CardAttribute.Earth)) ||
+                    Bot.GetMonsters().Concat(Bot.Graveyard).Concat(Bot.Banished).Any(c =>
+                        c.HasAttribute(CardAttribute.Light | CardAttribute.Wind | CardAttribute.Earth) &&
+                        HasUsefulRestrictedMonsterEffect(c))))
+                    return false;
+                if (Card.IsCode(CardId.SongsOfTheDominators) &&
+                    (Bot.HasInHand(CardId.MaxxC) || Bot.HasInHand(CardId.DrollLockBird) ||
+                        _albionSentToGraveThisTurn || Bot.GetMonsters().Concat(Bot.Graveyard)
+                            .Concat(Bot.Banished).Any(HasUsefulOffFieldMonsterEffect)))
+                    return false;
+            }
+            return CanRespondToOpponent() &&
+                !IsOpponentChainCovered(Duel.CurrentChainInfo.Count) &&
+                !DefaultCheckWhetherCardIsNegated(Card);
+        }
+
+        private bool HasUsefulRestrictedMonsterEffect(ClientCard monster)
+        {
+            if (monster.Location != CardLocation.MonsterZone)
+                return HasUsefulOffFieldMonsterEffect(monster);
+            if (!monster.IsFaceup() || DefaultCheckWhetherCardIsNegated(monster))
+                return false;
+            if (IsProtectedSynchroMaterial(monster))
+                return true;
+            if (monster.IsCode(CardId.PsychicEndPunisher))
+                return !_usedEffects.Contains(Util.GetStringId(monster.Id, 1)) &&
+                    Bot.LifePoints != Enemy.LifePoints ||
+                    !_usedEffects.Contains(Util.GetStringId(monster.Id, 0)) && Bot.LifePoints > 1000 &&
+                    Bot.GetMonsters().Any(c => c != monster && !c.IsExtraCard()) &&
+                    OrderedEnemyCards(Enemy.GetMonsters().Concat(Enemy.GetSpells()), true, false).Any();
+            if (_usedEffects.Contains(Util.GetStringId(monster.Id, 1)))
+                return false;
+            if (monster.IsCode(CardId.MikumariTheBanisherAshtra))
+                return Bot.HasInDeck(CardId.YoaThePlagueAshtra, CardId.AkasunaTheBattleAshtra,
+                    CardId.KuzuhaTheHexAshtra);
+            return monster.IsCode(CardId.YoaThePlagueAshtra) &&
+                Bot.GetSpellCountWithoutField() < 5 && Bot.HasInDeck(CardId.AshtrasDomain,
+                    CardId.AshtrasWeb, CardId.AshtrasHowl);
+        }
+
+        private bool HasUsefulOffFieldMonsterEffect(ClientCard monster)
+        {
+            if (monster.Location == CardLocation.Grave)
+            {
+                if (monster.IsCode(CardId.AlbionTheBrandedDragon))
+                    return _albionSentToGraveThisTurn && Bot.HasInDeck(CardId.TheFallenTheVirtuous);
+                return monster.IsCode(CardId.EcclesiaAndTheDarkDragon) &&
+                    !_usedEffects.Contains(Util.GetStringId(monster.Id, 1)) &&
+                    Bot.Graveyard.Concat(Bot.Banished).Any(c => c.HasType(CardType.Fusion) &&
+                        c.Level == 8 && (c.Location != CardLocation.Removed || c.IsFaceup())) &&
+                    OrderedEnemyCards(Enemy.GetMonsters().Concat(Enemy.GetSpells()), true, true).Any();
+            }
+            // Songs also lasts through the next End Phase. Protect visible field
+            // resources with a useful prospective GY effect, not arbitrary milled
+            // monsters whose one-shot send-to-GY trigger window has already passed.
+            if (monster.Location != CardLocation.MonsterZone || !monster.IsFaceup())
+                return false;
+            if (monster.IsCode(CardId.MikumariTheBanisherAshtra))
+                return !_usedEffects.Contains(Util.GetStringId(monster.Id, 2)) &&
+                    Bot.GetSpellCountWithoutField() < 5 && Bot.Graveyard.Any(c =>
+                        c.IsTrap() && !c.HasType(CardType.Continuous | CardType.Counter)) &&
+                    Bot.HasInExtra(new int[] { CardId.AshtrayaMikumariNoMikoto, CardId.AshtrajaSusanoo });
+            return monster.IsCode(CardId.EkhajarDescendantDragonOfTheIceBarrier) &&
+                _synchroSummonedEkhajar.Contains(monster) &&
+                Duel.Player == 1 && !_usedEffects.Contains(Util.GetStringId(monster.Id, 2)) &&
+                Enemy.Hand.Count + Enemy.GetMonsterCount() + Enemy.GetSpellCount() +
+                    Enemy.Graveyard.Count > 0;
+        }
+
+        private bool IsOpponentChainCovered(int chainIndex)
+        {
+            if (chainIndex <= 0 || chainIndex > Duel.CurrentChainInfo.Count ||
+                Duel.CurrentChainInfo[chainIndex - 1].ActivatePlayer != 1)
+                return false;
+            if (Duel.NegatedChainIndexList.Contains(chainIndex))
+                return true;
+            ChainInfo opponent = Duel.CurrentChainInfo[chainIndex - 1];
+            for (int index = chainIndex; index < Duel.CurrentChainInfo.Count; index++)
+            {
+                ChainInfo own = Duel.CurrentChainInfo[index];
+                if (own.ActivatePlayer != 0 || _resolvedChainIndices.Contains(index + 1) ||
+                    Duel.NegatedChainIndexList.Contains(index + 1))
+                    continue;
+                ClientCard source = own.RelatedCard;
+                // Leaving the field does not cancel an activated effect. Name
+                // negation (Called by/Crossout), however, still applies off-field.
+                if (source != null && DefaultCheckWhetherCardIsNegated(source))
+                    continue;
+                if (own.IsActivateCode(CardId.InfiniteImpermanence) &&
+                    own.ActivateLocation == CardLocation.SpellZone &&
+                    opponent.ActivateLocation == CardLocation.MonsterZone &&
+                    opponent.RelatedCard != null && opponent.RelatedCard.Controller == 1 &&
+                    opponent.RelatedCard.Location == CardLocation.MonsterZone &&
+                    opponent.RelatedCard.IsFaceup() && own.Targets.Contains(opponent.RelatedCard))
+                    return true;
+                // Negating the preceding link is not the same as negating every
+                // effect of its card. A later opponent insertion remains uncovered.
+                if (index != chainIndex)
+                    continue;
+                if ((own.IsActivateCode(CardId.BaronneDeFleur, CardId.AdamancipatorRisenDragite,
+                        CardId.TheGreatGallantBandit) &&
+                    own.ActivateDescription == Util.GetStringId(own.ActivateId, 1)) ||
+                    (own.IsActivateCode(CardId.DominusImpulse, CardId.SongsOfTheDominators,
+                        CardId.SolemnAccusation) &&
+                    own.ActivateDescription == Util.GetStringId(own.ActivateId, 0)))
+                    return true;
+                int option;
+                if (own.IsActivateCode(CardId.AshtrasDomain) &&
+                    _plannedTrapOptions.TryGetValue(index + 1, out option) && option == 2)
+                    return true;
+            }
+            return false;
         }
 
         private bool MaxxCActivate()
@@ -458,6 +593,7 @@ namespace WindBot.Game.AI.Decks
                 return false;
             ChainInfo latest = Duel.CurrentChainInfo.LastOrDefault();
             return latest != null && latest.ActivatePlayer == 1 &&
+                !IsOpponentChainCovered(Duel.CurrentChainInfo.Count) &&
                 latest.ActivateLocation == CardLocation.MonsterZone &&
                 latest.RelatedCard != null && latest.RelatedCard.Controller == 1 &&
                 latest.RelatedCard.Location == CardLocation.MonsterZone &&
@@ -468,9 +604,43 @@ namespace WindBot.Game.AI.Decks
         private bool SpiralActivate()
         {
             return !DefaultCheckWhetherCardIsNegated(Card) &&
-                OrderedEnemyCards(Enemy.GetMonsters(), true, false).Any() &&
+                OrderedEnemyCards(Enemy.GetMonsters().Where(IsSpiralTargetAllowed), true, false).Any() &&
                 (CanRespondToOpponent() || Duel.Player == 0 ||
                     Duel.Phase >= DuelPhase.BattleStart && Duel.Phase <= DuelPhase.Battle);
+        }
+
+        private bool IsSpiralTargetAllowed(ClientCard target)
+        {
+            if (target.Controller != 1 || target.Location != CardLocation.MonsterZone ||
+                !target.IsMonster())
+                return false;
+            if (Bot.Graveyard.Any(c => c.IsTrap()))
+                return true;
+            // Preserve the user's hard Extra Deck-only rule. The revival option
+            // can still use ANOTHER GY monster after an Extra Deck card is returned.
+            if (!target.IsExtraCard())
+                return false;
+            bool riskyRevival = (target.Sequence < 5 || Enemy.GetMonstersInMainZone().Count < 5) &&
+                Enemy.Graveyard.Any(c => c.Id != 0 && c.IsMonster() && c.IsCanRevive() &&
+                    (c.IsFloodgate() || c.IsMonsterDangerous() || c.IsMonsterShouldBeDisabledBeforeItUseEffect() ||
+                    c.Attack >= 2500 || c.Defense >= 2500 || c.HasType(CardType.Link) && c.LinkCount >= 3 ||
+                    c.HasType(CardType.Xyz) && c.Rank >= 4 ||
+                    c.HasType(CardType.Fusion | CardType.Synchro) && c.Level >= 8));
+            if (!riskyRevival)
+                return true;
+            if (target.IsFaceup() && !target.IsDisabled() &&
+                (target.IsFloodgate() || target.IsMonsterDangerous() ||
+                    target.IsMonsterShouldBeDisabledBeforeItUseEffect()))
+                return true;
+            if (Duel.CurrentChainInfo.Where((info, index) => info.ActivatePlayer == 1 &&
+                info.ActivateLocation == CardLocation.MonsterZone && info.RelatedCard == target &&
+                !IsOpponentChainCovered(index + 1) && !_resolvedChainIndices.Contains(index + 1)).Any() &&
+                !target.IsDisabled())
+                return true;
+            ClientCard defender = Bot.BattlingMonster;
+            int damage = defender == null ? target.GetAttackPower() :
+                defender.IsAttack() ? target.GetAttackPower() - defender.Attack : 0;
+            return Duel.Player == 1 && Enemy.BattlingMonster == target && damage >= Bot.LifePoints;
         }
 
         private bool SolemnActivate()
@@ -769,7 +939,7 @@ namespace WindBot.Game.AI.Decks
         {
             return chain != null && chain.ActivatePlayer == 1 &&
                 (chain.ActivateType & (int)(CardType.Spell | CardType.Trap)) != 0 &&
-                !Duel.NegatedChainIndexList.Contains(Duel.CurrentChainInfo.IndexOf(chain) + 1) &&
+                !IsOpponentChainCovered(Duel.CurrentChainInfo.IndexOf(chain) + 1) &&
                 !Enemy.GetMonsters().Concat(Enemy.GetSpells()).Any(c => c.IsFacedown());
         }
 
@@ -1083,7 +1253,8 @@ namespace WindBot.Game.AI.Decks
         {
             if (DefaultCheckWhetherCardIsNegated(Card))
                 return false;
-            if (IsDescription(1) && CanRespondToOpponent())
+            if (IsDescription(1) && CanRespondToOpponent() &&
+                !IsOpponentChainCovered(Duel.CurrentChainInfo.Count))
             {
                 _spentBaronne.Add(Card);
                 return true;
@@ -1843,7 +2014,7 @@ namespace WindBot.Game.AI.Decks
             if (id == CardId.BaronneDeFleur && hint == HintMsg.Destroy)
                 return SelectEnemy(cards, min, max, true, true, true);
             if (id == CardId.DominusSpiral && hint == HintMsg.ReturnToHand)
-                return SelectEnemy(cards, min, max, true, false, true);
+                return SelectEnemy(cards.Where(IsSpiralTargetAllowed).ToList(), min, max, true, false, true);
             if (id == CardId.AshtrasHowl && hint == HintMsg.Destroy)
             {
                 // Reapply the value filter at the actual target prompt. If an
@@ -1961,6 +2132,9 @@ namespace WindBot.Game.AI.Decks
                 selected = 0; // Only the server's offered branches are legal.
             if (selected >= 0)
             {
+                if (id == CardId.AshtrasDomain)
+                    _plannedTrapOptions[solving != null ? Duel.SolvingChainIndex : Duel.CurrentChain.Count] =
+                        options[selected] == Util.GetStringId(id, 2) ? 2 : 1;
                 return selected;
             }
             // Albion and Susanoo use shared system descriptions for add/set.
