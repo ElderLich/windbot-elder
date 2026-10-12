@@ -513,6 +513,7 @@ namespace WindBot.Game.AI.Decks
         public override void OnNewTurn()
         {
             ATKdown = false;
+            base.OnNewTurn();
         }
         public override BattlePhaseAction OnSelectAttackTarget(ClientCard attacker, IList<ClientCard> defenders)
         {
@@ -793,7 +794,7 @@ namespace WindBot.Game.AI.Decks
             for(int i=0;i<idList.Length;i++)  //优先回收
             {
                 int keepNum = keepNums.ElementAtOrDefault(i);       //keepNum不存在时为0
-                int hasNum = Bot.GetCountCardInZone(Bot.Graveyard, idList[i]);
+                int hasNum = Bot.Graveyard.GetCardCount(idList[i]);
                 for (int j = 0; j < hasNum - keepNum; j++)          //返回优先
                 {
                     AI.SelectCard(idList[j]);

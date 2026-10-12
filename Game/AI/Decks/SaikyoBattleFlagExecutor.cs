@@ -287,6 +287,7 @@ namespace WindBot.Game.AI.Decks
         public override void OnNewTurn()
         {
             DoubleTribute = false;
+            base.OnNewTurn();
         }
         private bool DefaultDoubleSummon()
         {
@@ -493,7 +494,7 @@ namespace WindBot.Game.AI.Decks
         }
         private bool 瞄准鹰summon2()
         {
-            if (Bot.GetCountCardInZone(Bot.Hand, CardId.瞄准鹰) >= 2 )
+            if (Bot.Hand.GetCardCount(CardId.瞄准鹰) >= 2 )
                 if (Bot.HasInHand(new[] { _CardId.手枪龙, CardId.最强战旗, CardId.钢机神, CardId.恶德 }))
                   if (Enemy.MonsterZone.GetMatchingCardsCount(card => card.Level >= 7) > 0)
                              return true;           

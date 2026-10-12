@@ -106,6 +106,7 @@ namespace WindBot.Game.AI.Decks
         public override void OnNewTurn()
         {
             atkup = false;
+            base.OnNewTurn();
         }
 
         public override BattlePhaseAction OnSelectAttackTarget(ClientCard attacker, IList<ClientCard> defenders)

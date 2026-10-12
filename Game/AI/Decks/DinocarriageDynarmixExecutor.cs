@@ -345,13 +345,13 @@ namespace WindBot.Game.AI.Decks
         }
         private bool 机械镰刀盗龙Effect()
         {
-            if (Bot.GetCountCardInZone(Bot.Hand, CardId.大恐龙驾) >= 2) AI.SelectCard(CardId.大恐龙驾);
+            if (Bot.Hand.GetCardCount(CardId.大恐龙驾) >= 2) AI.SelectCard(CardId.大恐龙驾);
             else
-            if (Bot.GetCountCardInZone(Bot.Hand, CardId.大恐龙驾L) >= 2) AI.SelectCard(CardId.大恐龙驾L);
+            if (Bot.Hand.GetCardCount(CardId.大恐龙驾L) >= 2) AI.SelectCard(CardId.大恐龙驾L);
             else
-            if (Bot.GetCountCardInZone(Bot.Hand, CardId.大恐龙驾R) >= 2) AI.SelectCard(CardId.大恐龙驾R);
+            if (Bot.Hand.GetCardCount(CardId.大恐龙驾R) >= 2) AI.SelectCard(CardId.大恐龙驾R);
             else
-            if (Bot.GetCountCardInZone(Bot.Hand, CardId.超级恐龙王) >= 2) AI.SelectCard(CardId.超级恐龙王);
+            if (Bot.Hand.GetCardCount(CardId.超级恐龙王) >= 2) AI.SelectCard(CardId.超级恐龙王);
             else
                 AI.SelectCard(
                     CardId.抑龙,
@@ -375,23 +375,23 @@ namespace WindBot.Game.AI.Decks
                     else check = mon;
                 }
 
-            if (Bot.GetCountCardInZone(Bot.Hand, CardId.侏罗纪世界) >= 2)
+            if (Bot.Hand.GetCardCount(CardId.侏罗纪世界) >= 2)
             {
                 AI.SelectCard(CardId.侏罗纪世界); AI.SelectNextCard(check);
             }
-            else if (Bot.GetCountCardInZone(Bot.Hand, CardId.大恐龙驾) >= 2)
+            else if (Bot.Hand.GetCardCount(CardId.大恐龙驾) >= 2)
             {
                 AI.SelectCard(CardId.大恐龙驾); AI.SelectNextCard(check);
             }
-            else if (Bot.GetCountCardInZone(Bot.Hand, CardId.大恐龙驾R) >= 2)
+            else if (Bot.Hand.GetCardCount(CardId.大恐龙驾R) >= 2)
             {
                 AI.SelectCard(CardId.大恐龙驾R); AI.SelectNextCard(check);
             }
-            else if (Bot.GetCountCardInZone(Bot.Hand, CardId.大恐龙驾L) >= 2)
+            else if (Bot.Hand.GetCardCount(CardId.大恐龙驾L) >= 2)
             {
                 AI.SelectCard(CardId.大恐龙驾L); AI.SelectNextCard(check);
             }
-            else if (Bot.GetCountCardInZone(Bot.Hand, CardId.巨身多角龙) >= 2)
+            else if (Bot.Hand.GetCardCount(CardId.巨身多角龙) >= 2)
             {
                 AI.SelectCard(CardId.巨身多角龙); AI.SelectNextCard(check);
             }
@@ -421,30 +421,30 @@ namespace WindBot.Game.AI.Decks
         }
         private bool 共进化repos()
         {
-            if (Bot.HasInHandOrInSpellZone(CardId.奇迹的共进化) && (Bot.GetCountCardInZone(Bot.Hand, CardId.凶怒甲龙) + Bot.GetCountCardInZone(Bot.Hand, CardId.超级恐龙王) >= 1))
+            if (Bot.HasInHandOrInSpellZone(CardId.奇迹的共进化) && (Bot.Hand.GetCardCount(CardId.凶怒甲龙) + Bot.Hand.GetCardCount(CardId.超级恐龙王) >= 1))
                 return true;
             return false;
         }
         private bool MAXLsummon()
         {
-            if (Bot.GetCountCardInZone(Bot.Hand, CardId.大恐龙驾L) >= 2 && Bot.HasInHandOrInSpellZone(CardId.奇迹的共进化) && (Bot.GetCountCardInZone(Bot.Hand, CardId.凶怒甲龙) + Bot.GetCountCardInZone(Bot.Hand, CardId.超级恐龙王) >= 1))
+            if (Bot.Hand.GetCardCount(CardId.大恐龙驾L) >= 2 && Bot.HasInHandOrInSpellZone(CardId.奇迹的共进化) && (Bot.Hand.GetCardCount(CardId.凶怒甲龙) + Bot.Hand.GetCardCount(CardId.超级恐龙王) >= 1))
                 return true;
             return false;
         }
         private bool MAXRsummon()
         {
-            if (Bot.GetCountCardInZone(Bot.Hand, CardId.大恐龙驾R) >= 2 && Bot.HasInHandOrInSpellZone(CardId.奇迹的共进化) && (Bot.GetCountCardInZone(Bot.Hand, CardId.凶怒甲龙)+ Bot.GetCountCardInZone(Bot.Hand, CardId.超级恐龙王) >= 1))
+            if (Bot.Hand.GetCardCount(CardId.大恐龙驾R) >= 2 && Bot.HasInHandOrInSpellZone(CardId.奇迹的共进化) && (Bot.Hand.GetCardCount(CardId.凶怒甲龙)+ Bot.Hand.GetCardCount(CardId.超级恐龙王) >= 1))
                 return true;
             return false;
         }
         private bool MAXLset()
         {
-            if (Bot.GetCountCardInZone(Bot.Hand, CardId.大恐龙驾L) < 2) return false;
+            if (Bot.Hand.GetCardCount(CardId.大恐龙驾L) < 2) return false;
             return true;
         }
         private bool MAXRset()
         {
-            if (Bot.GetCountCardInZone(Bot.Hand, CardId.大恐龙驾R) < 2) return false;
+            if (Bot.Hand.GetCardCount(CardId.大恐龙驾R) < 2) return false;
             return true;
         }
 
